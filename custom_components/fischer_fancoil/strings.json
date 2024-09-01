@@ -1,0 +1,31 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configure Your Integration",
+                "description": "Enter the details for your device",
+                "data": {
+                    "name": "Name",
+                    "hub": "Hub",
+                    "unit_id": "unit ID"
+                },
+                "data_description": {
+                    "name": "Name of the device",
+                    "hub": "Name of the modbus hub to use (default: modbus)",
+                    "unit_id": "modbus unit ID (default: 0)"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Configure Your Integration",
+                "description": "Enter the details for your device",
+                "data": {
+                    "poll_interval": "Poll Interval"
+                }
+            }
+        }
+    }
+}

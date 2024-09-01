@@ -1,0 +1,11 @@
+{
+    "domain": "fischer_fancoil",
+    "name": "Fischer Fancoil",
+    "documentation": "https://github.com/bakadave/ha_fischer_fancoil",
+    "dependencies": ["modbus"],
+    "codeowners": ["@bakadavid"],
+    "requirements": [],
+    "iot_class": "local_polling",
+    "version": "0.1.0",
+    "config_flow": true
+}
