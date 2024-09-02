@@ -143,7 +143,11 @@ class ModbusHost:
         """Write a single coil."""
         async with self._lock:
             await self.async_connect()
-            result = await self._client.write_coil(address, value, unit_id)
+            try:
+                result = await self._client.write_coil(address, value, unit_id)
+            except ModbusException as e:
+                _LOGGER.error("Modbus error writing coil at address %s: %s", address, e)
+                return False
             if not result.isError():
                 return True
 

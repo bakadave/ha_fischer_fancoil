@@ -56,10 +56,11 @@ class FischerFancoil(ClimateEntity):
         self._unique_id = f"{name}:{unit_id}"
 
         self._hvac_mode = HVACMode.OFF
-        self._power_state = False
+        self._power_state = None
         self._target_temperature = None
         self._current_temperature = None
         self._fan_mode = "low"
+        self._swing_mode = False
         self._attr_device_info = device_info
         _LOGGER.debug("Creating ModbusFancoil entity: %s, unit ID: %s", name, unit_id)
 
@@ -108,6 +109,16 @@ class FischerFancoil(ClimateEntity):
         return self._fan_mode
 
     @property
+    def swing_modes(self):
+        """Return the list of available swing modes."""
+        return ["on", "off"]
+
+    @property
+    def swing_mode(self):
+        """Return the current swing mode."""
+        return self._swing_mode
+
+    @property
     def min_temp(self):
         """Return the minimum temperature."""
         return 16
@@ -140,7 +151,7 @@ class FischerFancoil(ClimateEntity):
             | ClimateEntityFeature.FAN_MODE
             | ClimateEntityFeature.TURN_OFF
             | ClimateEntityFeature.TURN_ON
-            # | ClimateEntityFeature.SWING_MODE
+            | ClimateEntityFeature.SWING_MODE
         )
 
     @property
@@ -222,6 +233,16 @@ class FischerFancoil(ClimateEntity):
         except Exception as e:
             _LOGGER.error("Error turning off fancoil: %s", str(e))
 
+    async def async_set_swing_mode(self, swing_mode):
+        """Set the swing mode."""
+        mode_value = {"off": False, "on": True}.get(swing_mode, False)
+        _LOGGER.debug("Setting swing mode to %s", swing_mode)
+        success = await self._modbus.async_write_coil(self._unit_id, 3, mode_value)
+        if success:
+            self._swing_mode = swing_mode
+        else:
+            _LOGGER.error("Error setting swing mode to %s", swing_mode)
+
     async def async_update(self):
         """Update the state of the climate entity."""
         try:
@@ -265,18 +286,26 @@ class FischerFancoil(ClimateEntity):
                 _LOGGER.error("Received invalid data for fan mode")
             await asyncio.sleep(0.30)  # Sleep for 250ms
 
+            # Read swing mode
+            swing_mode = await self._modbus.async_read_coil(self._unit_id, 3)
+            if swing_mode is not None:
+                self._swing_mode = self._value_to_swing_mode(swing_mode)
+            else:
+                _LOGGER.error("Received invalid data for swing mode")
+
         except Exception as e:
             _LOGGER.error("Error updating ModbusFancoil state: %s", str(e))
 
         finally:
             # Notify Home Assistant of the updated state
             _LOGGER.debug(
-                "Updating ModbusFancoil state: temp=%s, target=%s, mode=%s, fan=%s, power=%s",
+                "Updating ModbusFancoil state: temp=%s, target=%s, mode=%s, fan=%s, power=%s, swing mode: %s",
                 self._current_temperature,
                 self._target_temperature,
                 self._hvac_mode,
                 self._fan_mode,
                 self._power_state,
+                self._swing_mode,
             )
             # self.async_write_ha_state()
 
@@ -295,6 +324,9 @@ class FischerFancoil(ClimateEntity):
 
     def _value_to_fan_mode(self, value):
         return {0: "auto", 1: "high", 2: "medium", 3: "low"}.get(value, "auto")
+
+    def _value_to_swing_mode(self, value):
+        return {0: "off", 1: "on"}.get(value, "off")
 
     def _decode_bcd(self, value):
         return (
