@@ -40,7 +40,7 @@ async def async_setup_entry(
     )
 
     device = FischerFancoil(name, modbus_host, unit_id, device_info)
-    async_add_entities([device])
+    async_add_entities([device], update_before_add=True)
 
     # async_add_entities([ModbusFancoil(name, hub, unit_id, device_info)])
 
@@ -164,40 +164,45 @@ class FischerFancoil(ClimateEntity):
         # Set fancoil power state based on HVAC mode
         if hvac_mode != HVACMode.OFF and not self._power_state:
             await self.async_turn_on()
+            await asyncio.sleep(0.30)  # Sleep for 300ms
         elif hvac_mode == HVACMode.OFF and self._power_state:
             await self.async_turn_off()
+            await asyncio.sleep(0.30)  # Sleep for 300ms
 
         # If the HVAC mode is changing, update the fancoil
         if self._hvac_mode != hvac_mode:
-            await self._modbus.async_write_register(self._unit_id, 67, int(mode_value))
-
-        self._hvac_mode = hvac_mode
-        # self.async_write_ha_state()
+            success = await self._modbus.async_write_register(
+                self._unit_id, 67, int(mode_value)
+            )
+            if success:
+                self._hvac_mode = hvac_mode
+            else:
+                _LOGGER.error("Error setting HVAC mode to %s", hvac_mode)
 
     async def async_set_temperature(self, **kwargs):
         """Set the target temperature."""
         temperature = kwargs.get("temperature")
         if temperature is not None:
-            try:
-                _LOGGER.debug("Setting temperature to %s", temperature)
-                await self._modbus.async_write_register(
-                    self._unit_id, 65, int(temperature)
-                )
+            temperature = round(temperature)
+            _LOGGER.debug("Setting target temperature to %s", temperature)
+            success = await self._modbus.async_write_register(
+                self._unit_id, 65, int(temperature)
+            )
+            if success:
                 self._target_temperature = temperature
-
-            except Exception as e:
-                _LOGGER.error("Error setting target temperature: %s", str(e))
+            else:
+                _LOGGER.error("Error setting target temperature to %s", temperature)
 
     async def async_set_fan_mode(self, fan_mode):
         """Set the fan mode."""
         fan_value = {"auto": 0, "high": 1, "medium": 2, "low": 3}.get(fan_mode, 0)
 
-        try:
-            _LOGGER.debug("Setting fan mode to %s", fan_mode)
-            await self._modbus.async_write_register(self._unit_id, 66, fan_value)
+        _LOGGER.debug("Setting fan mode to %s", fan_mode)
+        success = await self._modbus.async_write_register(self._unit_id, 66, fan_value)
+        if success:
             self._fan_mode = fan_mode
-        except Exception as e:
-            _LOGGER.error("Error setting fan mode: %s", str(e))
+        else:
+            _LOGGER.error("Error setting fan mode to %s", fan_mode)
 
     async def async_turn_on(self):
         """Turn on the fancoil."""
@@ -224,7 +229,7 @@ class FischerFancoil(ClimateEntity):
             current_temp = await self._modbus.async_read_input_registers(
                 self._unit_id, 73, 1
             )
-            if current_temp is not None and len(current_temp) > 0:
+            if current_temp is not None and len(current_temp) == 1:
                 self._current_temperature = self._decode_bcd(current_temp[0])
             else:
                 _LOGGER.warning("Received invalid data for current temperature")
@@ -234,7 +239,7 @@ class FischerFancoil(ClimateEntity):
             target_temp = await self._modbus.async_read_holding_registers(
                 self._unit_id, 65, 1
             )
-            if target_temp is not None and len(target_temp) > 0:
+            if target_temp is not None and len(target_temp) == 1:
                 self._target_temperature = target_temp[0]
             else:
                 _LOGGER.warning("Received invalid data for target temperature")
@@ -244,17 +249,17 @@ class FischerFancoil(ClimateEntity):
             mode = await self._modbus.async_read_holding_registers(self._unit_id, 67, 1)
             await asyncio.sleep(0.25)
             power = await self._modbus.async_read_coil(self._unit_id, 1)
-            if mode is None or power is None or len(mode) == 0:
-                _LOGGER.error("No response to reading HVAC mode or power state")
-            else:
+            if mode is not None and power is not None and len(mode) == 1:
                 self._hvac_mode = self._value_to_hvac_mode(power, mode[0])
+            else:
+                _LOGGER.error("No response to reading HVAC mode or power state")
             await asyncio.sleep(0.30)  # Sleep for 250ms
 
             # Read fan mode
             fan_speed = await self._modbus.async_read_holding_registers(
                 self._unit_id, 66, 1
             )
-            if fan_speed is not None and len(fan_speed) > 0:
+            if fan_speed is not None and len(fan_speed) == 1:
                 self._fan_mode = self._value_to_fan_mode(fan_speed[0])
             else:
                 _LOGGER.error("Received invalid data for fan mode")
@@ -273,7 +278,7 @@ class FischerFancoil(ClimateEntity):
                 self._fan_mode,
                 self._power_state,
             )
-            self.async_write_ha_state()
+            # self.async_write_ha_state()
 
     def _value_to_hvac_mode(self, power, mode):
         if not power:

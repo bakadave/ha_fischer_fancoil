@@ -1,20 +1,26 @@
 """Modbus host for Fischer Fancoil."""
 
 import asyncio
+import logging
 
 from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.exceptions import ModbusException
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ModbusHost:
     """Modbus host for Fischer Fancoil."""
 
-    def __init__(self, host, port) -> None:
+    def __init__(self, host, port, max_retries=3, retry_delay=0.5) -> None:
         """Initialize the modbus host."""
         self._host = host
         self._port = port
         self._client = AsyncModbusTcpClient(host=host, port=port)
         self._lock = asyncio.Lock()
         self._subscriber_count = 0
+        self._max_retry_count = max_retries
+        self._retry_delay = retry_delay
 
     async def async_connect(self):
         """Connect to the modbus host."""
@@ -41,22 +47,53 @@ class ModbusHost:
             task = asyncio.create_task(self.async_disconnect())
             # TODO: destroy host instance if no subscribers
 
+    # NOTE: This method  will try to read the registers 'self._max_retries' times
     async def async_read_holding_registers(self, unit_id, address, count):
         """Read holding registers."""
         async with self._lock:
-            await self.async_connect()
-            result = await self._client.read_holding_registers(address, count, unit_id)
-            if not result.isError():
-                return result.registers
+            for attempt in range(self._max_retry_count):
+                await self.async_connect()
+                result = await self._client.read_holding_registers(
+                    address, count, unit_id
+                )
+                if not result.isError() and len(result.registers) == count:
+                    return result.registers
+
+                if attempt < self._max_retry_count - 1:
+                    _LOGGER.warning(
+                        "Modbus error reading holding registers at address %s, retrying",
+                        address,
+                    )
+                    await asyncio.sleep(self._retry_delay)
+
+            _LOGGER.error(
+                "Modbus error reading holding registers at address %s, retries exhausted",
+                address,
+            )
             return None
 
     async def async_read_input_registers(self, unit_id, address, count):
         """Read input registers."""
         async with self._lock:
-            await self.async_connect()
-            result = await self._client.read_input_registers(address, count, unit_id)
-            if not result.isError():
-                return result.registers
+            for attempt in range(self._max_retry_count):
+                await self.async_connect()
+                result = await self._client.read_input_registers(
+                    address, count, unit_id
+                )
+                if not result.isError() and len(result.registers) == count:
+                    return result.registers
+
+                if attempt < self._max_retry_count - 1:
+                    _LOGGER.warning(
+                        "Modbus error reading input registers at address %s, retrying",
+                        address,
+                    )
+                    await asyncio.sleep(self._retry_delay)
+            _LOGGER.error(
+                "Modbus error reading input registers at address %s, retries exhausted",
+                address,
+            )
+
             return None
 
     async def async_read_coil(self, unit_id, address):
@@ -71,15 +108,46 @@ class ModbusHost:
     async def async_read_coils(self, unit_id, address, count):
         """Read coils."""
         async with self._lock:
-            await self.async_connect()
-            result = await self._client.read_coils(address, count, unit_id)
-            if not result.isError():
-                return result.bits
+            for attempts in range(self._max_retry_count):
+                await self.async_connect()
+                result = await self._client.read_coils(address, count, unit_id)
+                if not result.isError() and len(result.bits) == count:
+                    return result.bits
+
+                if attempts < self._max_retry_count - 1:
+                    _LOGGER.warning(
+                        "Modbus error reading coils at address %s, retrying", address
+                    )
+                    await asyncio.sleep(self._retry_delay)
+
+            _LOGGER.error(
+                "Modbus error reading coils at address %s, retries exhausted", address
+            )
             return None
 
-    async def async_write_register(self, unit_id, address, value):
+    async def async_write_register(self, unit_id, address, value) -> bool:
         """Write a single register."""
         async with self._lock:
             await self.async_connect()
             result = await self._client.write_register(address, value, unit_id)
-            return not result.isError()
+            if not result.isError():
+                return True
+
+            _LOGGER.error(
+                "Modbus error writing register at address %s, retries exhausted",
+                address,
+            )
+            return False
+
+    async def async_write_coil(self, unit_id, address, value):
+        """Write a single coil."""
+        async with self._lock:
+            await self.async_connect()
+            result = await self._client.write_coil(address, value, unit_id)
+            if not result.isError():
+                return True
+
+            _LOGGER.error(
+                "Modbus error writing coil at address %s, retries exhausted", address
+            )
+            return False
