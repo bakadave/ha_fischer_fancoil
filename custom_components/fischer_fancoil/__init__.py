@@ -11,9 +11,8 @@ from .modbus_host import ModbusHost
 _LOGGER = logging.getLogger(__name__)
 
 
-# config flow entry point
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Fischer Fancoil from a config entry."""
+    """Set up Fischer Fancoil from config flow."""
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
     host_key = f"{host}:{port}"
@@ -37,7 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload config entry."""
     host_key = f"{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}"
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
