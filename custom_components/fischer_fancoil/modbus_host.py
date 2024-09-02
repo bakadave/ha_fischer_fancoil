@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.exceptions import ModbusException
+from pymodbus.exceptions import ModbusException, ModbusIOException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -128,30 +128,71 @@ class ModbusHost:
     async def async_write_register(self, unit_id, address, value) -> bool:
         """Write a single register."""
         async with self._lock:
-            await self.async_connect()
-            result = await self._client.write_register(address, value, unit_id)
-            if not result.isError():
-                return True
+            try:
+                await self.async_connect()
+                result = await self._client.write_register(address, value, unit_id)
+                if not result.isError():
+                    return True
 
-            _LOGGER.error(
-                "Modbus error writing register at address %s, retries exhausted",
-                address,
-            )
-            return False
+                _LOGGER.error(
+                    "Modbus error writing register at address %s, retries exhausted",
+                    address,
+                )
+            except ModbusIOException as e:
+                _LOGGER.error(
+                    "Modbus I/O error writing register at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False
+            except ModbusException as e:
+                _LOGGER.error(
+                    "Modbus error writing register at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False
+            except Exception as e:
+                _LOGGER.error(
+                    "Unknown error writing register at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False
 
     async def async_write_coil(self, unit_id, address, value):
         """Write a single coil."""
         async with self._lock:
-            await self.async_connect()
             try:
+                await self.async_connect()
                 result = await self._client.write_coil(address, value, unit_id)
-            except ModbusException as e:
-                _LOGGER.error("Modbus error writing coil at address %s: %s", address, e)
-                return False
-            if not result.isError():
-                return True
 
-            _LOGGER.error(
-                "Modbus error writing coil at address %s, retries exhausted", address
-            )
-            return False
+                if not result.isError():
+                    return True
+
+                _LOGGER.error(
+                    "Modbus error writing coil at address %s",
+                    address,
+                )
+
+            except ModbusIOException as e:
+                _LOGGER.error(
+                    "Modbus I/O error writing coil at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False
+            except ModbusException as e:
+                _LOGGER.error(
+                    "Modbus error writing coil at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False
+            except Exception as e:
+                _LOGGER.error(
+                    "Unknown error writing coil at address %s: %s",
+                    address,
+                    str(e),
+                )
+                return False

@@ -18,12 +18,12 @@ from .const import (
     CONF_NAME,
     CONF_UNIT_ID,
     DOMAIN,
-    REGISTER_POWER,
-    REGISTER_SWING,
-    REGISTER_SET_TEMP,
     REGISTER_FAN_SPEED,
-    REGISTER_OPMODE,
     REGISTER_INDOOR_TEMP,
+    REGISTER_OPMODE,
+    REGISTER_POWER,
+    REGISTER_SET_TEMP,
+    REGISTER_SWING,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -325,7 +325,6 @@ class FischerFancoil(ClimateEntity):
                 self._power_state,
                 self._swing_mode,
             )
-            # self.async_write_ha_state()
 
     def _value_to_hvac_mode(self, power, mode):
         if not power:
