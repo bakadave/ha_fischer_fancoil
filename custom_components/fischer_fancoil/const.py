@@ -3,7 +3,7 @@
 from homeassistant.const import Platform
 
 DOMAIN = "fischer_fancoil"
-PLATFORMS = [Platform.CLIMATE]
+PLATFORMS = [Platform.CLIMATE, Platform.SENSOR]
 
 CONF_NAME = "name"
 CONF_HUB = "hub"
@@ -26,3 +26,4 @@ REGISTER_FAN_SPEED = 66
 REGISTER_OPMODE = 67
 
 REGISTER_INDOOR_TEMP = 73
+REGISTER_COIL_TEMP = 74
