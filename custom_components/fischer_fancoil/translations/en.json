@@ -2,29 +2,34 @@
     "config": {
         "step": {
             "user": {
+                "title": "Configure Your Integration",
+                "description": "Enter the details for your device",
                 "data": {
-                    "hub": "Hub",
                     "name": "Name",
+                    "host": "Host",
+                    "port": "Port",
                     "unit_id": "unit ID"
                 },
                 "data_description": {
-                    "hub": "Name of the modbus hub to use (default: modbus)",
                     "name": "Name of the device",
+                    "host": "Modbus TCP host",
+                    "port": "Modbus port (default: 502)",
                     "unit_id": "modbus unit ID (default: 0)"
-                },
-                "description": "Enter the details for your device",
-                "title": "Configure Your Integration"
+                }
             }
         }
     },
     "options": {
         "step": {
             "init": {
+                "title": "Configure Your Integration",
+                "description": "Enter the details for your device",
                 "data": {
                     "poll_interval": "Poll Interval"
                 },
-                "description": "Enter the details for your device",
-                "title": "Configure Your Integration"
+                "data_description": {
+                    "poll_interval": "Poll interval in seconds (default: 10)"
+                }
             }
         }
     }

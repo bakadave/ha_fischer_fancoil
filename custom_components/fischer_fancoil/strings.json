@@ -6,12 +6,14 @@
                 "description": "Enter the details for your device",
                 "data": {
                     "name": "Name",
-                    "hub": "Hub",
+                    "host": "Host",
+                    "port": "Port",
                     "unit_id": "unit ID"
                 },
                 "data_description": {
                     "name": "Name of the device",
-                    "hub": "Name of the modbus hub to use (default: modbus)",
+                    "host": "Modbus TCP host",
+                    "port": "Modbus port (default: 502)",
                     "unit_id": "modbus unit ID (default: 0)"
                 }
             }
@@ -24,6 +26,9 @@
                 "description": "Enter the details for your device",
                 "data": {
                     "poll_interval": "Poll Interval"
+                },
+                "data_description": {
+                    "poll_interval": "Poll interval in seconds (default: 10)"
                 }
             }
         }
